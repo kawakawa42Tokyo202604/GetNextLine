@@ -6,13 +6,12 @@ char	*get_next_line(int fd)
 	char		*buf;
 	ssize_t		size;
 
+	if (fd < 0 || fd >= 1028)
+		return (NULL);
 	size = 1;
 	buf = (char *)malloc(sizeof(char) * BUFFER_SIZE + 1);
 	if (is_error(fd, buf))
-	{
-		save[fd] = all_free(buf, save[fd]);
-		return (NULL);
-	}
+		return (save[fd] = all_free(buf, save[fd]));
 	while (is_newline(save[fd]) == -1 && size != 0)
 	{
 		size = read(fd, buf, BUFFER_SIZE);

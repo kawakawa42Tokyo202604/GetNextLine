@@ -1,169 +1,83 @@
-
 # GetNextLine
 
+## English
 
-## 概要
-この課題では、ファイルディスクリプタから1行ずつ読み取る `get_next_line` を実装します。呼び出すたびに1行分の文字列を返し、次の呼び出しで使う残りのデータは `static` 変数に保持します。
+A C function that retrieves one line at a time from a text file or terminal input. Repeated calls on the same input return successive lines.
 
-### 読み込み方法
-1回の `read` で読み込むサイズは、`BUFFER_SIZE` で指定します。
+For input `first\nsecond`, it returns `"first\n"`, then `"second"`, then `NULL` after the input is exhausted. Here `\n` represents a newline. The input is identified by a file descriptor (fd), the integer returned by functions such as `open()`.
 
-### 実装の流れ
-`is_newline` を使って読み込んだデータに改行が含まれているかを確認します。改行が見つからない場合は、改行またはEOFに達するまで読み込みを続けます。1行分を返した後、残りのデータは `static` 変数に保存し、次の呼び出しで使います。
+### Single-file and multiple-file versions
 
-## 使用方法
+| Sources | Behavior |
+| --- | --- |
+| `get_next_line.c` + `get_next_line_utils.c` | Read successive lines from one fd |
+| `get_next_line_bonus.c` + `get_next_line_utils_bonus.c` | Keep separate unread data when alternating between files |
 
-読み取り対象のファイルディスクリプタを `get_next_line` に渡します。
+### Build and try
 
-### コンパイル
-以下にMakefileの例と、ライブラリの作成に使うコマンドを示します。
-```bash
-make        # .aを生成
-make clean  # .oを削除
-make fclean # 生成ファイルをすべて削除
-make re     # fclean の後に make
-```
-#### Makefileの例
-```make
-NAME    = get_next_line.a
-CC      = cc
-CFLAGS  = -Wall -Wextra -Werror
+Requires a C compiler and Make. The supplied [main.c](main.c) reads standard input or a file given as an argument.
 
-SRCS    = get_next_line.c get_next_line_utils.c
-OBJS    = $(SRCS:.c=.o)
-
-B_SRCS  = get_next_line_bonus.c get_next_line_utils_bonus.c
-B_OBJS  = $(B_SRCS:.c=.o)
-
-all: $(NAME)
-
-$(NAME): $(OBJS)
-	ar rcs $(NAME) $(OBJS)
-
-bonus: $(B_OBJS)
-	ar rcs $(NAME) $(B_OBJS)
-
-%.o: %.c
-	$(CC) $(CFLAGS) -c $< -o $@
-
-clean:
-	rm -f $(OBJS) $(B_OBJS)
-
-fclean: clean
-	rm -f $(NAME)
-
-re: fclean all
-
-.PHONY: all clean fclean re bonus
-```
-#### main
-```c
-#include "get_next_line.h"
-#include <fcntl.h>
-#include <stdio.h>
-
-int	main(int argc, char **argv)
-{
-	int		fd;
-	char	*line;
-	int		line_count;
-
-	if (argc < 2)
-	{
-		printf("Usage: %s <file_path>\n", argv[1]);
-		return (1);
-	}
-
-	// 1. ファイルの読み込みテスト
-	fd = open(argv[1], O_RDONLY);
-	if (fd == -1)
-	{
-		perror("Error opening file");
-		return (1);
-	}
-
-	printf("--- Reading file: %s ---\n", argv[1]);
-	line_count = 1;
-	while ((line = get_next_line(fd)) != NULL)
-	{
-		printf("[%02d]: %s", line_count++, line);
-		free(line);
-	}
-	close(fd);
-
-	// 2. 標準入力のテスト (必要であればコメントアウトを外してください)
-	/*
-	printf("\n--- Reading from Standard Input (Ctrl+D to stop) ---\n");
-	while ((line = get_next_line(0)) != NULL)
-	{
-		printf("STDIN: %s", line);
-		free(line);
-	}
-	*/
-
-	return (0);
-}
-```
-#### main bonus
-```c
-#include "get_next_line_bonus.h"
-#include <fcntl.h>
-#include <stdio.h>
-
-
-int	main(void)
-{
-	int		fd1;
-	int		fd2;
-	char	*line;
-	int		i;
-
-	fd1 = open("file1.txt", O_WRONLY | O_CREAT | O_TRUNC, 0644);
-	fd2 = open("file2.txt", O_WRONLY | O_CREAT | O_TRUNC, 0644);
-	write(fd1, "F1-Line 1\nF1-Line 2\nF1-Line 3\n", 30);
-	write(fd2, "F2-Line A\nF2-Line B\nF2-Line C\n", 30);
-	close(fd1);
-	close(fd2);
-
-	fd1 = open("file1.txt", O_RDONLY);
-	fd2 = open("file2.txt", O_RDONLY);
-
-	printf("--- Multiple FD Test Starting ---\n\n");
-
-	i = 0;
-	while (i < 3)
-	{
-		line = get_next_line(fd1);
-		printf("FD %d: %s", fd1, line);
-		free(line);
-
-		line = get_next_line(fd2);
-		printf("FD %d: %s", fd2, line);
-		free(line);
-
-		i++;
-	}
-
-	close(fd1);
-	close(fd2);
-	printf("\n--- Test Complete ---\n");
-	return (0);
-}
-```
-#### text1
-```
-Hello, 42!
-This is a test for get_next_line.
-The BUFFER_SIZE will determine how many bytes are read at once.
-Final line without a newline... (maybe)
-```
-#### text2
-```
-[File 2] Line A: Hello
-[File 2] Line B: This is the second file
-[File 2] Line C: Bonus part test
-[File 2] Line D: Goodbye!
+```sh
+make
+printf 'first line\nsecond line' | ./gnl_example
+./gnl_example README.md
+make bonus
+./gnl_bonus_example README.md
 ```
 
-## AIの利用
-`static` 変数や `read`、`open` の使い方の理解、サンプルの `main` とREADMEの作成・見直しにAIを利用しました。
+The example prints each retrieved line to the terminal. You can also use `make run ARGS=README.md`. Set the read size with a command such as `make re BUFFER_SIZE=1024`.
+
+### Implementation
+
+- `BUFFER_SIZE` is the maximum number of bytes requested by one `read` call; the default is 42.
+- Returned lines include their newline when present. The function returns `NULL` at end of file with no unread data, or on error.
+- The caller must `free` each returned string.
+
+### Tests
+
+```sh
+make test
+```
+
+Checks empty input, newlines, long lines, EOF, invalid fds, and interleaved files in the bonus version with buffer sizes 1, 42, and 1024.
+
+## 日本語
+
+テキストファイルや端末の入力を、1行ずつ取り出すC関数です。同じ読み込み先に対して繰り返し呼ぶと、次の行、その次の行と順に文字列を返します。
+
+例えば内容が `first\nsecond` なら、最初の呼び出しは `"first\n"`、次は `"second"`、読み終えた後は `NULL` を返します。ここで `\n` は改行です。読み込み先は、`open()` などが返す整数の識別番号（ファイルディスクリプタ、fd）で指定します。
+
+### 通常版と複数ファイル対応版
+
+| ソース | 動作 |
+| --- | --- |
+| `get_next_line.c` + `get_next_line_utils.c` | 1つのファイルディスクリプタから順に読み込む |
+| `get_next_line_bonus.c` + `get_next_line_utils_bonus.c` | 複数のファイルを交互に読んでも、それぞれの続きから返す |
+
+### ビルドと使用例
+
+Cコンパイラ・Make が必要です。付属の [main.c](main.c) は、標準入力または引数で指定したファイルを1行ずつ読み込みます。
+
+```sh
+make
+printf 'first line\nsecond line' | ./gnl_example
+./gnl_example README.md
+make bonus
+./gnl_bonus_example README.md
+```
+
+この実行例は、取り出した行を順に端末へ表示します。`make run ARGS=README.md` でも実行できます。読み込みサイズは `make re BUFFER_SIZE=1024` のように指定します。
+
+### 実装メモ
+
+- `BUFFER_SIZE` は1回の `read` で読み込む最大バイト数です。省略時は42です。
+- 戻り値には改行があればその改行も含まれます。ファイルの終わり（EOF）まで読み、未読データがない場合、またはエラー時は `NULL` を返します。
+- 返された文字列は呼び出し側で `free` します。
+
+### テスト
+
+```sh
+make test
+```
+
+BUFFER_SIZEが1・42・1024の場合の空入力、改行、長い行、EOF、不正なfd、ボーナス版の複数fdを確認します。
